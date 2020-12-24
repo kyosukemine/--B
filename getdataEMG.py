@@ -45,6 +45,15 @@ def name_to_num(name):
             num = int(names[i,1])
     return num
 
+# numを名前に変換
+def num_to_name(num):
+    namelist_txt = "name_list.txt"
+    names = np.loadtxt(namelist_txt,delimiter=',', dtype=object)
+    name = None
+    for i in range(len(names)):
+        if int(names[i,1]) == num:
+            name = names[i,0]
+    return name
 
 # フォルダからtxtファイル読み込み
 def get_txtfile_path(path):
@@ -63,7 +72,6 @@ def get_txtfile_path(path):
                 filelist.append(os.path.join(pathname,filename))
 
     return filelist
-
 
 # EMGファイル読み込み
 def file_read(path):
@@ -119,7 +127,7 @@ def get_status(path):
     return [n_o,voice,muscle,name_num]
 
 # 4つの筋電を別々にプロット 1ループ
-def plot(nd,i):
+def plot(nd,i,status):
     """複数のグラフを並べて描画するプログラム"""
     import numpy as np
     import matplotlib.pyplot as plt
@@ -128,6 +136,8 @@ def plot(nd,i):
     if i == 0:
         global fig 
         fig = plt.figure(figsize=(15, 10), dpi=80)
+    fig.suptitle("{} {} {} {}".format(num_to_name(status[3]),['無','有'][status[1]],
+    ['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]), fontname="MS Gothic")
 
     #add_subplot()でグラフを描画する領域を追加する．引数は行，列，場所
     ax1 = fig.add_subplot(5, 4, 1+i*4)
@@ -163,32 +173,29 @@ def plot(nd,i):
     # ax3.vlines(lines, ymin = y3.min(), ymax = y3.max())
     # ax4.vlines(lines, ymin = y4.min(), ymax = y4.max())
     fig.tight_layout()              #レイアウトの設定
-    # plt.show()
-    # plt.close()
+
     if i == 4:
-        wm = plt.get_current_fig_manager()
-        wm.window.state('zoomed')
-        plt.show()
-        plt.close()
+        if one_roop_frg == 1:# frg 1 だったら1枚づつplot
+            wm = plt.get_current_fig_manager()
+            wm.window.state('zoomed')
+            plt.show()
+            plt.close()
 
-
-
-# 母音別にカット 1roop
-def cut(nd,status):
+# 音素別にカット 1roop
+def cut(nd,status,onnso_0,onnso_1,onnso_2,onnso_3,onnso_4):
 
     for i in range(4):# 筋肉の部位をiとして先頭に記録
         # [筋肉部位，n_o,voice,muscle,name,~]
         j = i
         if status[2] == 2:
             j += 4
-        boin_a.append([j] + status + np.squeeze(nd[1000:2000,i]).tolist())
-        boin_i.append([j] + status + np.squeeze(nd[3000:4000,i]).tolist())
-        boin_u.append([j] + status + np.squeeze(nd[5000:6000,i]).tolist())
-        boin_e.append([j] + status + np.squeeze(nd[7000:8000,i]).tolist())
-        boin_o.append([j] + status + np.squeeze(nd[9000:10000,i]).tolist())
+        onnso_0.append([j] + status + np.squeeze(nd[1000:2000,i]).tolist())
+        onnso_1.append([j] + status + np.squeeze(nd[3000:4000,i]).tolist())
+        onnso_2.append([j] + status + np.squeeze(nd[5000:6000,i]).tolist())
+        onnso_3.append([j] + status + np.squeeze(nd[7000:8000,i]).tolist())
+        onnso_4.append([j] + status + np.squeeze(nd[9000:10000,i]).tolist())
     
     # return boin_a,boin_i,boin_u,boin_e,boin_o
-
 
 # 平均算出
 def mean(boin):# 筋肉別の平均値算出
@@ -217,8 +224,8 @@ def mean(boin):# 筋肉別の平均値算出
         '{:.5f}'.format(boin_5_mean),'{:.5f}'.format(boin_6_mean),'{:.5f}'.format(boin_7_mean))
     return [boin_0_mean,boin_1_mean,boin_2_mean,boin_3_mean,boin_4_mean,boin_5_mean,boin_6_mean,boin_7_mean]
 
-# 1roopに対して
-def one_roop(path):
+# 1ファイルに対して
+def one_file(path):
 
     nd = file_read(path) # 1人分の1試行分のデータ(母音のスライドのみ)をnd入れる
     status = get_status(path) # ステータスを取得
@@ -227,10 +234,11 @@ def one_roop(path):
     
     for i in range(5): # 1/roop
         if plotfrg == 1:# フラグが1だったらプロット
-            plot(nd[i*12000+1000:i*12000+12000],i) # 1つのパスのデータをplot
-        cut(nd[i*12000+1000:i*12000+12000],status) # 母音別にカット
-        pass
+            plot(nd[i*12000+1000:i*12000+12000],i,status) # 1つのパスのデータをplot
+        cut(nd[i*12000+1000:i*12000+12000],status,boin_a,boin_i,boin_u,boin_e,boin_o) # 母音別にカット
 
+
+# csv save
 def save_csv(csv_list,file_name):
     with open(file_name, 'w',newline="") as f:
         writer = csv.writer(f)
@@ -243,24 +251,30 @@ def save_csv(csv_list,file_name):
 # フラグ
 file_print_frg = 0
 status_comment_frg = 0
-plotfrg = 0
+plotfrg = 1
+one_roop_frg = 0
 mean_print_frg = 0
 #######################################
 
-path_list = get_txtfile_path(".\\experimental_data")
 
-for i in tqdm(path_list):
-    one_roop(i)
-boin_list = [boin_a,boin_i,boin_u,boin_e,boin_o]
+def main():
+    path_list = get_txtfile_path(".\\experimental_data")
+    for i in tqdm(path_list):
+        one_file(i)
+    if one_roop_frg == 0:
+        wm = plt.get_current_fig_manager()
+        wm.window.state('zoomed')
+        plt.show()
+    boin_list = [boin_a,boin_i,boin_u,boin_e,boin_o]
 
-mean_table = []
-for i in boin_list:
-    mean_table.append(mean(i))
+    mean_table = []
+    for i in boin_list:
+        mean_table.append(mean(i))
 
-save_csv(mean_table,'mean_table.csv')
+    save_csv(mean_table,'mean_table.csv')
 
 
-
+main()
 
 
 

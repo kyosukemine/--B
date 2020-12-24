@@ -86,10 +86,22 @@ import os
 
 #     return filelist
 # print(get_txtfile_path("./experimental_data"))
-bbb = 1
-print("a{3}i{1}u{0}e{2}o".format())
+# bbb = 1
+# print("a{3}i{1}u{0}e{2}o".format())
 # def aaa():
 #     return 1,2,3
 # _,_,_ = aaa()
 # print(_)
-
+def num_to_name(num):
+    namelist_txt = "name_list.txt"
+    names = np.loadtxt(namelist_txt,delimiter=',', dtype=object)
+    print(names)
+    name = None
+    for i in range(len(names)):
+        print(num)
+        print(names[i,1])
+        if int(names[i,1]) == num:
+            print(names[i,0])
+            name = names[i,0]
+    return name
+print(num_to_name(0))
