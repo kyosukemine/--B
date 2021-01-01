@@ -1,5 +1,9 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import csv
 import os
+from tqdm import tqdm
 # nd = np.array([[1,2,3,4,5,6],[2,67,1,5,7,5]])
 # print(nd[1][3:6])
 # a1 = np.array([1,2,3,4,56])
@@ -92,16 +96,70 @@ import os
 #     return 1,2,3
 # _,_,_ = aaa()
 # print(_)
-def num_to_name(num):
-    namelist_txt = "name_list.txt"
-    names = np.loadtxt(namelist_txt,delimiter=',', dtype=object)
-    print(names)
-    name = None
-    for i in range(len(names)):
-        print(num)
-        print(names[i,1])
-        if int(names[i,1]) == num:
-            print(names[i,0])
-            name = names[i,0]
-    return name
-print(num_to_name(0))
+# def num_to_name(num):
+#     namelist_txt = "name_list.txt"
+#     names = np.loadtxt(namelist_txt,delimiter=',', dtype=object)
+#     print(names)
+#     name = None
+#     for i in range(len(names)):
+#         print(num)
+#         print(names[i,1])
+#         if int(names[i,1]) == num:
+#             print(names[i,0])
+#             name = names[i,0]
+#     return name
+# print(num_to_name(0))
+
+# a = [[[1,2,3,4,5,6,7],[1,5,12,4,5]],[9]]
+# b= []
+# b.extend(a)
+# b.extend(a)
+# print(b)
+
+# df = pd.read_csv('boin_all_table.csv',header=None,delimiter=',',dtype='float64')
+# # print(df)
+# # for i in range(100,130,10):
+# #     plt.plot(df.iloc[i,6:])
+# # plt.show()
+
+# target_vector = df.iloc[:,0].astype(int)               # クラス分類を整数値のベクトルで表現したもの
+# print(target_vector)
+# n_labels = len(np.unique(target_vector))  # 分類クラスの数 = 5
+# print(np.eye(n_labels)[target_vector])           # one hot表現に変換
+
+# def fileopen(file_name = ""):
+#     '''
+#     fileopen
+#     csvファイルを読み込み，読み込んだデータをnparrayとして出力する
+#     '''
+#     df = pd.read_csv(file_name,header=None,delimiter=',',dtype='float64')
+
+#     target_vector = df.iloc[:,0].astype(int)               # クラス分類を整数値のベクトルで表現したもの
+#     n_labels = len(np.unique(target_vector))  # 分類クラスの数 = 5
+#     output_data = np.eye(n_labels)[target_vector]           # one hot表現に変換
+#     output_data = output_data
+#     input_data = df.iloc[:,7:]
+#     input_data = input_data.values
+#     return input_data,output_data
+
+# print(fileopen('boin_all_table.csv'))
+
+
+df = pd.read_csv('boin_all_table.csv',header=None,delimiter=',',dtype='float64')
+input_data = []
+output_data = []
+for i in np.unique(df.iloc[:,6].astype(int)):
+    input_data.append(df[df.iloc[:,6] == i].iloc[:,7:].values)
+    output_data.append(df[df.iloc[:,6] == i].iloc[0,0])
+
+input_data = np.array(input_data)
+output_data = np.array(output_data).astype(int)
+
+n_labels = len(np.unique(output_data))  # 分類クラスの数 = 5
+output_data = np.eye(n_labels)[output_data]           # one hot表現に変換
+
+print(input_data[1,:,:].shape)
+print(input_data.shape)
+
+print(output_data)
+print(output_data.shape)

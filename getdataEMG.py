@@ -6,14 +6,15 @@ import os
 from tqdm import tqdm
 
 
-
-
+boin_all = []
+cnt = 0
 status = []
 boin_a = []
 boin_i = []
 boin_u = []
 boin_e = []
 boin_o = []
+boin_set = [0,1,2,3,4]
 
 siin_k = []
 siin_s = []
@@ -175,39 +176,41 @@ def plot(nd,i,status):
     fig.tight_layout()              #レイアウトの設定
 
     if i == 4:
-        if one_roop_frg == 1:# frg 1 だったら1枚づつplot
+        fig.savefig("./images/{}{}{}{}.svg".format(num_to_name(status[3]),['無','有'][status[1]],['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]))
+        fig.savefig("./images/{}{}{}{}.png".format(num_to_name(status[3]),['無','有'][status[1]],['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]))
+        if one_roop_plt_frg == 1:# frg 1 だったら1枚づつplot
             wm = plt.get_current_fig_manager()
             wm.window.state('zoomed')
             plt.show()
             plt.close()
 
 # 音素別にカット 1roop
-def cut(nd,status,onnso_0,onnso_1,onnso_2,onnso_3,onnso_4):
+def cut(nd,status,onnso_0,onnso_1,onnso_2,onnso_3,onnso_4,onnso_set,id):
 
     for i in range(4):# 筋肉の部位をiとして先頭に記録
-        # [筋肉部位，n_o,voice,muscle,name,~]
+        # [b音素番号，筋肉部位，n_o,voice,muscle,name,id,~]
         j = i
         if status[2] == 2:
             j += 4
-        onnso_0.append([j] + status + np.squeeze(nd[1000:2000,i]).tolist())
-        onnso_1.append([j] + status + np.squeeze(nd[3000:4000,i]).tolist())
-        onnso_2.append([j] + status + np.squeeze(nd[5000:6000,i]).tolist())
-        onnso_3.append([j] + status + np.squeeze(nd[7000:8000,i]).tolist())
-        onnso_4.append([j] + status + np.squeeze(nd[9000:10000,i]).tolist())
+        onnso_0.append([onnso_set[0]] + [j] + status + [id] + np.squeeze(nd[1000:2000,i]).tolist())# 何か追加したときはmeanの順番に気を付ける
+        onnso_1.append([onnso_set[1]] + [j] + status + [id+1] + np.squeeze(nd[3000:4000,i]).tolist())
+        onnso_2.append([onnso_set[2]] + [j] + status + [id+2] + np.squeeze(nd[5000:6000,i]).tolist())
+        onnso_3.append([onnso_set[3]] + [j] + status + [id+3] + np.squeeze(nd[7000:8000,i]).tolist())
+        onnso_4.append([onnso_set[4]] + [j] + status + [id+4] + np.squeeze(nd[9000:10000,i]).tolist())
     
     # return boin_a,boin_i,boin_u,boin_e,boin_o
 
 # 平均算出
 def mean(boin):# 筋肉別の平均値算出
     boin = np.array(boin)# numpy配列に変換
-    boin_0 = boin[boin[:,0] == 0][:,5:] # statusを除いた値を出す
-    boin_1 = boin[boin[:,0] == 1][:,5:]
-    boin_2 = boin[boin[:,0] == 2][:,5:]
-    boin_3 = boin[boin[:,0] == 3][:,5:]
-    boin_4 = boin[boin[:,0] == 4][:,5:]
-    boin_5 = boin[boin[:,0] == 5][:,5:]
-    boin_6 = boin[boin[:,0] == 6][:,5:]
-    boin_7 = boin[boin[:,0] == 7][:,5:]
+    boin_0 = boin[boin[:,1] == 0][:,7:] # statusを除いた値を出す
+    boin_1 = boin[boin[:,1] == 1][:,7:]
+    boin_2 = boin[boin[:,1] == 2][:,7:]
+    boin_3 = boin[boin[:,1] == 3][:,7:]
+    boin_4 = boin[boin[:,1] == 4][:,7:]
+    boin_5 = boin[boin[:,1] == 5][:,7:]
+    boin_6 = boin[boin[:,1] == 6][:,7:]
+    boin_7 = boin[boin[:,1] == 7][:,7:]
 
 
     boin_0_mean = boin_0.mean() # numpyで全体の平均値を出している(行ごとに出したい場合はaxis=1)
@@ -226,16 +229,18 @@ def mean(boin):# 筋肉別の平均値算出
 
 # 1ファイルに対して
 def one_file(path):
-
+    global cnt
     nd = file_read(path) # 1人分の1試行分のデータ(母音のスライドのみ)をnd入れる
     status = get_status(path) # ステータスを取得
-    nd = average(nd,100) # 100msで移動平均化
+    if avrage_frg == 1:
+        nd = average(nd,100) # 100msで移動平均化
     
     
     for i in range(5): # 1/roop
         if plotfrg == 1:# フラグが1だったらプロット
             plot(nd[i*12000+1000:i*12000+12000],i,status) # 1つのパスのデータをplot
-        cut(nd[i*12000+1000:i*12000+12000],status,boin_a,boin_i,boin_u,boin_e,boin_o) # 母音別にカット
+        cut(nd[i*12000+1000:i*12000+12000],status,boin_a,boin_i,boin_u,boin_e,boin_o,boin_set,cnt) # 母音別にカット
+        cnt += 5
 
 
 # csv save
@@ -250,10 +255,11 @@ def save_csv(csv_list,file_name):
 ######################################
 # フラグ
 file_print_frg = 0
+avrage_frg = 1
 status_comment_frg = 0
-plotfrg = 1
-one_roop_frg = 0
-mean_print_frg = 0
+plotfrg = 0
+one_roop_plt_frg = 0
+mean_print_frg = 1
 #######################################
 
 
@@ -261,17 +267,25 @@ def main():
     path_list = get_txtfile_path(".\\experimental_data")
     for i in tqdm(path_list):
         one_file(i)
-    if one_roop_frg == 0:
-        wm = plt.get_current_fig_manager()
-        wm.window.state('zoomed')
+    if one_roop_plt_frg == 0:
         plt.show()
     boin_list = [boin_a,boin_i,boin_u,boin_e,boin_o]
 
     mean_table = []
     for i in boin_list:
         mean_table.append(mean(i))
-
+    boin_all.extend(boin_a)
+    boin_all.extend(boin_i)
+    boin_all.extend(boin_u)
+    boin_all.extend(boin_e)
+    boin_all.extend(boin_o)
     save_csv(mean_table,'mean_table.csv')
+    save_csv(boin_a,'boin_a_table.csv')
+    save_csv(boin_i,'boin_i_table.csv')
+    save_csv(boin_u,'boin_u_table.csv')
+    save_csv(boin_e,'boin_e_table.csv')
+    save_csv(boin_o,'boin_o_table.csv')
+    save_csv(boin_all,'boin_all_table.csv')
 
 
 main()
