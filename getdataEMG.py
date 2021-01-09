@@ -4,6 +4,12 @@ import pandas as pd
 import csv
 import os
 from tqdm import tqdm
+from scipy import signal
+from numpy import array, sign, zeros
+from numpy import array, sign, zeros
+from scipy.interpolate import interp1d
+
+# envelope = abs(signal.hilbert(data))
 
 
 boin_all = []
@@ -70,6 +76,8 @@ def get_txtfile_path(path):
             # 拡張子がtxtまたはTXTの時
             if (filename.endswith('.TXT') or filename.endswith('.txt'))and(os.path.join(pathname,filename) != ".\experimental_data\EMG_sound.txt"):
                 # filelistにファイルパスを格納する
+                if filename == 'WAV_oyuusei_1_suzuki_siinn.txt':
+                    continue
                 filelist.append(os.path.join(pathname,filename))
 
     return filelist
@@ -83,7 +91,9 @@ def file_read(path):
     if file_print_frg == 1 :
         print(path)
     start_mark = df.index[df["c5"]=="#* M1  "][0]  #開始点のインデックス抽出
-    df = df.iloc[start_mark+10000:] #開始点からのデータを取り出す
+    if "kyosuke" in path: # 自分は10秒の遅れをしている
+        start_mark += 10000
+    df = df.iloc[start_mark:] #開始点からのデータを取り出す
     df = df[["c1","c2","c3","c4"]] #マーク列をのぞいた４列のみにする
     df = df.astype(float) #数値がstrになっているのでfloat変換
     df = df.abs()  #絶対値を取り整流化
@@ -127,8 +137,78 @@ def get_status(path):
         print("名前------------------------------->{}".format(name))
     return [n_o,voice,muscle,name_num]
 
+def low_pass(nd):
+    # 時系列のサンプルデータ作成
+    n = len(nd)                         # データ数
+    dt = 0.001                       # サンプリング間隔
+    f = 1000                           # 周波数
+    fn = 1/(2*dt)                   # ナイキスト周波数
+    y = nd
+
+    # パラメータ設定
+    fp = 10                          # 通過域端周波数[Hz]
+    fs = 20                          # 阻止域端周波数[Hz]
+    gpass = 1                       # 通過域最大損失量[dB]
+    gstop = 40                      # 阻止域最小減衰量[dB]
+    # 正規化
+    Wp = fp/fn
+    Ws = fs/fn
+
+    # ローパスフィルタで波形整形
+    # バターワースフィルタ
+    N, Wn = signal.buttord(Wp, Ws, gpass, gstop)
+    b1, a1 = signal.butter(N, Wn, "low")
+    y1 = signal.filtfilt(b1, a1, y)
+    return y1
+
+
+def envelope(nd,ws):
+    from numpy import array, sign, zeros
+    from scipy.interpolate import interp1d
+
+
+    s = nd #This is your noisy vector of values.
+
+    q_u = zeros(s.shape)
+
+
+    #Prepend the first value of (s) to the interpolating values. This forces the model to use the same starting point for both the upper and lower envelope models.
+
+    u_x = [0,]
+    u_y = [s[0],]
+
+
+    #Detect peaks and troughs and mark their location in u_x,u_y,l_x,l_y respectively.
+    lis = [ i for i in range(ws,len(s)-1,ws)]
+    
+
+    for k in lis:
+            
+        u_x.append(s[k-ws:k].argmax()+k-ws)
+        u_y.append(s[k-ws:k].max())
+
+
+    #Append the last value of (s) to the interpolating values. This forces the model to use the same ending point for both the upper and lower envelope models.
+
+    u_x.append(len(s)-1)
+    u_y.append(s[-1])
+
+
+
+    #Fit suitable models to the data. Here I am using cubic splines, similarly to the MATLAB example given in the question.
+
+    u_p = interp1d(u_x,u_y, kind = 'linear',bounds_error = False, fill_value=0.0)
+
+
+    #Evaluate each model over the domain of (s)
+    for k in range(0,len(s)):
+        q_u[k] = u_p(k)
+
+    return q_u
+
+
 # 4つの筋電を別々にプロット 1ループ
-def plot(nd,i,status):
+def plot(nd,i,status,ws):
     """複数のグラフを並べて描画するプログラム"""
     import numpy as np
     import matplotlib.pyplot as plt
@@ -137,15 +217,27 @@ def plot(nd,i,status):
     if i == 0:
         global fig 
         fig = plt.figure(figsize=(15, 10), dpi=80)
-    fig.suptitle("{} {} {} {}".format(num_to_name(status[3]),['無','有'][status[1]],
-    ['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]), fontname="MS Gothic")
-
+    # if avrage_frg == 1:
+    fig.suptitle("{} {} {} {} {}".format(num_to_name(status[3]),['無','有'][status[1]],
+    ['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1],str(window_size) + 'ms'), fontname="MS Gothic",fontsize=20)
+    # else:
+    #     fig.suptitle("{} {} {} {}".format(num_to_name(status[3]),['無','有'][status[1]],
+    #     ['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]), fontname="MS Gothic",fontsize=20)
     #add_subplot()でグラフを描画する領域を追加する．引数は行，列，場所
-    ax1 = fig.add_subplot(5, 4, 1+i*4)
-    ax2 = fig.add_subplot(5, 4, 2+i*4)
-    ax3 = fig.add_subplot(5, 4, 3+i*4)
-    ax4 = fig.add_subplot(5, 4, 4+i*4)
+
+    # 列方向に同じ筋肉部位を並べる
+    # ax1 = fig.add_subplot(5, 4, 1+i*4)
+    # ax2 = fig.add_subplot(5, 4, 2+i*4)
+    # ax3 = fig.add_subplot(5, 4, 3+i*4)
+    # ax4 = fig.add_subplot(5, 4, 4+i*4)
+
+    # 行方向に同じ筋肉部位を並べる
+    ax1 = fig.add_subplot(4, 5, 1+i)
+    ax2 = fig.add_subplot(4, 5, 6+i)
+    ax3 = fig.add_subplot(4, 5, 11+i)
+    ax4 = fig.add_subplot(4, 5, 16+i)
     
+
     y1 = nd[:,0]
     y2 = nd[:,1]
     y3 = nd[:,2]
@@ -153,11 +245,37 @@ def plot(nd,i,status):
 
     c1,c2,c3,c4 = "blue","green","red","black"      # 各プロットの色
     l1,l2,l3,l4 = "1","2","3","4"   # 各ラベル
+    if row_data_plot_frg ==1 :
+        ax1.plot(y1, color=c1, label=l1)
+        ax2.plot(y2, color=c2, label=l2)
+        ax3.plot(y3, color=c3, label=l3)
+        ax4.plot(y4, color=c4, label=l4)
 
-    ax1.plot(y1, color=c1, label=l1)
-    ax2.plot(y2, color=c2, label=l2)
-    ax3.plot(y3, color=c3, label=l3)
-    ax4.plot(y4, color=c4, label=l4)
+
+    if envelope_frg == 1 :
+
+        # envelope_y1 = abs(signal.hilbert(y1))
+        # envelope_y2 = abs(signal.hilbert(y2))
+        # envelope_y3 = abs(signal.hilbert(y3))
+        # envelope_y4 = abs(signal.hilbert(y4))
+
+
+        # envelope_y1 = low_pass(y1)
+        # envelope_y2 = low_pass(y2)
+        # envelope_y3 = low_pass(y3)
+        # envelope_y4 = low_pass(y4)
+        
+
+        envelope_y1 = envelope(y1,ws)
+        envelope_y2 = envelope(y2,ws)
+        envelope_y3 = envelope(y3,ws)
+        envelope_y4 = envelope(y4,ws)
+
+        ax1.plot(envelope_y1, color=c1, label=l1)
+        ax2.plot(envelope_y2, color=c2, label=l2)
+        ax3.plot(envelope_y3, color=c3, label=l3)
+        ax4.plot(envelope_y4, color=c4, label=l4)
+
     # ax1.legend(loc = 'upper right') #凡例
     # ax2.legend(loc = 'upper right') #凡例
     # ax3.legend(loc = 'upper right') #凡例
@@ -176,12 +294,18 @@ def plot(nd,i,status):
     fig.tight_layout()              #レイアウトの設定
 
     if i == 4:
-        fig.savefig("./images/{}{}{}{}.svg".format(num_to_name(status[3]),['無','有'][status[1]],['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]))
-        fig.savefig("./images/{}{}{}{}.png".format(num_to_name(status[3]),['無','有'][status[1]],['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1]))
+        if one_roop_save_frg == 1:
+            os.makedirs("./images/svg/{}".format(save_fig_dir), exist_ok=True)
+            os.makedirs("./images/png/{}".format(save_fig_dir), exist_ok=True)
+            fig.savefig("./images/svg/{4}/{3}{2}{1}{0}.svg".format(num_to_name(status[3]),['無','有'][status[1]],['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1],save_fig_dir))
+            fig.savefig("./images/png/{4}/{3}{2}{1}{0}.png".format(num_to_name(status[3]),['無','有'][status[1]],['自然','誇張'][status[0]],['筋肉１','筋肉２'][status[2]-1],save_fig_dir))
         if one_roop_plt_frg == 1:# frg 1 だったら1枚づつplot
             wm = plt.get_current_fig_manager()
             wm.window.state('zoomed')
             plt.show()
+            plt.close()
+        if plt_memory_release == 1:
+            plt.clf() # メモリ解放のため
             plt.close()
 
 # 音素別にカット 1roop
@@ -233,12 +357,12 @@ def one_file(path):
     nd = file_read(path) # 1人分の1試行分のデータ(母音のスライドのみ)をnd入れる
     status = get_status(path) # ステータスを取得
     if avrage_frg == 1:
-        nd = average(nd,100) # 100msで移動平均化
+        nd = average(nd,window_size) # window_sizeで移動平均化
     
     
     for i in range(5): # 1/roop
         if plotfrg == 1:# フラグが1だったらプロット
-            plot(nd[i*12000+1000:i*12000+12000],i,status) # 1つのパスのデータをplot
+            plot(nd[i*12000+1000:i*12000+12000],i,status,window_size) # 1つのパスのデータをplot
         cut(nd[i*12000+1000:i*12000+12000],status,boin_a,boin_i,boin_u,boin_e,boin_o,boin_set,cnt) # 母音別にカット
         cnt += 5
 
@@ -254,20 +378,37 @@ def save_csv(csv_list,file_name):
 
 ######################################
 # フラグ
-file_print_frg = 0
-avrage_frg = 1
-status_comment_frg = 0
-plotfrg = 0
-one_roop_plt_frg = 0
-mean_print_frg = 1
-#######################################
 
+# ターミナルに情報出力
+file_print_frg = 1
+mean_print_frg = 1
+
+# 平均
+avrage_frg = 0
+status_comment_frg = 1
+
+# plot関係
+plotfrg = 1
+row_data_plot_frg = 0
+one_roop_plt_frg = 0
+one_roop_save_frg = 1
+plt_memory_release = 1
+all_plt_frg = 0
+
+# 包絡線
+envelope_frg = 1
+#######################################
+save_fig_dir = "envelope_off" #フォルダ作成
+save_fig_dir = "envelope_on_ws100" #フォルダ作成
+save_fig_dir = "envelope_only_ws100" #フォルダ作成
+save_fig_dir = "envelope_on_ws10" #フォルダ作成
+window_size = 100
 
 def main():
     path_list = get_txtfile_path(".\\experimental_data")
     for i in tqdm(path_list):
         one_file(i)
-    if one_roop_plt_frg == 0:
+    if one_roop_plt_frg == 1:
         plt.show()
     boin_list = [boin_a,boin_i,boin_u,boin_e,boin_o]
 

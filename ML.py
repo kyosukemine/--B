@@ -12,7 +12,7 @@ from keras import backend as K
 from keras.models import Model
 from keras.models import load_model
 from keras.layers.core import Dense, Dropout, Activation, Flatten
-from keras.layers import Conv1D, MaxPool1D, Input
+from keras.layers import Conv1D, MaxPool1D, Input,Conv2d
 from keras.utils import plot_model
 from keras.callbacks import EarlyStopping, ModelCheckpoint, CSVLogger
 import gc
@@ -84,6 +84,8 @@ def CNNLearn(Learn_num, inputdata, outputdata, validation_data_x, validation_dat
 
     # モデル構造
     inputs = Input(shape=(input_data_len, 1))
+
+
     x = Conv1D(filters=number_filters_1, kernel_size=kernel_size_1, padding='same', strides=stride_1)(inputs)
     x = Activation(activatioin_func)(x)
     x = MaxPool1D(pool_size=pool_size_1, padding='valid')(x)
