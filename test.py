@@ -5,7 +5,7 @@ import csv
 import os
 from tqdm import tqdm
 from scipy import signal
-
+import time
 
 # フォルダからtxtファイル読み込み
 def get_txtfile_path(path):
@@ -221,10 +221,13 @@ mean_print_frg = 1
 
 # print(output_data)
 # print(output_data.shape)
-
+########################################
 # df = pd.read_csv('boin_all_table.csv',header=None,delimiter=',',dtype='float64')
 # input_data = []
 # output_data = []
+# name_num = 0 # kyosuke
+# df = df[df.iloc[:,5] == 0] # name_numデータだけ取り出す
+# print(df)
 # for i in np.unique(df.iloc[:,6].astype(int)):
 #     input_data.append(df[df.iloc[:,6] == i].iloc[:,7:].values)
 #     output_data.append(df[df.iloc[:,6] == i].iloc[0,0])
@@ -254,35 +257,77 @@ mean_print_frg = 1
 # # c = np.vstack((a,b))
 # print(c)
 # print(c.shape)
+########################################################
+# # path = 
+# nd = file_read(r'C:\Users\kobayashi kyosuke\OneDrive - 埼玉大学\卒研B\workspace\experimental_data\0107_kaito\EMG\WAV_omusei_2_kaito.txt')
+# plt.figure()
+# plt.plot(nd[:,2])
 
-# path = 
-nd = file_read(r'C:\Users\kobayashi kyosuke\OneDrive - 埼玉大学\卒研B\workspace\experimental_data\0107_kaito\EMG\WAV_omusei_2_kaito.txt')
-plt.figure()
-plt.plot(nd[:,2])
+
+
+# # 時系列のサンプルデータ作成
+# n = len(nd[:,1])                         # データ数
+# dt = 0.001                       # サンプリング間隔
+# f = 1000                           # 周波数
+# fn = 1/(2*dt)                   # ナイキスト周波数
+# y = nd[:,1]
+
+# # パラメータ設定
+# fp = 10                          # 通過域端周波数[Hz]
+# fs = 20                          # 阻止域端周波数[Hz]
+# gpass = 1                       # 通過域最大損失量[dB]
+# gstop = 40                      # 阻止域最小減衰量[dB]
+# # 正規化
+# Wp = fp/fn
+# Ws = fs/fn
+
+# # ローパスフィルタで波形整形
+# # バターワースフィルタ
+# N, Wn = signal.buttord(Wp, Ws, gpass, gstop)
+# b1, a1 = signal.butter(N, Wn, "low")
+# y1 = signal.filtfilt(b1, a1, y)
+# plt.figure()
+# plt.plot(y1)
+# plt.show()
+
+
+df = pd.read_csv('200masima_boin_all_table.csv',header=None,delimiter=',',dtype='float64')
+input_data = []
+output_data = []
+start = time.time()
+for i in range(len(df.iloc[:,0])):
+    threshold = df.iloc[i,-1]
+    nd = np.array(df.iloc[i,7:])
+    nd = np.where(nd >= threshold, threshold ,nd)
+    nd = (nd - 0) / (nd.max() - 0)
+    df.iloc[i,7:] = nd
+elapsed_time = time.time() - start
+
+for i in range(4):
+    
+df_0 = df[df.iloc[:,1] == 0].iloc[:,:-1] # name_numデータだけ取り出す
+df_1 = df[df.iloc[:,1] == 1].iloc[:,:-1]
+df_2 = df[df.iloc[:,1] == 2].iloc[:,:-1]
+df_3 = df[df.iloc[:,1] == 3].iloc[:,:-1]
+df_4 = df[df.iloc[:,1] == 4].iloc[:,:-1]
+df_5 = df[df.iloc[:,1] == 5].iloc[:,:-1]
+df_6 = df[df.iloc[:,1] == 6].iloc[:,:-1]
+df_7 = df[df.iloc[:,1] == 7].iloc[:,:-1]
+
+df_0_mean = df_0.mean(axis=1)
+df_1_mean = df_1.mean(axis=1)
+df_2_mean = df_2.mean(axis=1)
+df_3_mean = df_3.mean(axis=1)
+df_4_mean = df_4.mean(axis=1)
+df_5_mean = df_5.mean(axis=1)
+df_6_mean = df_6.mean(axis=1)
+df_7_mean = df_7.mean(axis=1)
+print(df_0_mean)
+print(df_6.shape)
+for i in range(1,50,5):
+    plt.plot(df_3.iloc[i])
+    plt.show()
 
 
 
-# 時系列のサンプルデータ作成
-n = len(nd[:,1])                         # データ数
-dt = 0.001                       # サンプリング間隔
-f = 1000                           # 周波数
-fn = 1/(2*dt)                   # ナイキスト周波数
-y = nd[:,1]
-
-# パラメータ設定
-fp = 10                          # 通過域端周波数[Hz]
-fs = 20                          # 阻止域端周波数[Hz]
-gpass = 1                       # 通過域最大損失量[dB]
-gstop = 40                      # 阻止域最小減衰量[dB]
-# 正規化
-Wp = fp/fn
-Ws = fs/fn
-
-# ローパスフィルタで波形整形
-# バターワースフィルタ
-N, Wn = signal.buttord(Wp, Ws, gpass, gstop)
-b1, a1 = signal.butter(N, Wn, "low")
-y1 = signal.filtfilt(b1, a1, y)
-plt.figure()
-plt.plot(y1)
-plt.show()
+print ("elapsed_time:{0}[sec]".format(elapsed_time))

@@ -43,6 +43,37 @@ def plot_result(history, num):
     # plt.savefig('./MLData_SPgas/graph_loss' + str(num) +'.png')
     # plt.show()
 
+def fileopen(file_name = ""):
+    '''
+    fileopen
+    csvファイルを読み込み，読み込んだデータをnparrayとして出力する
+    '''
+    df = pd.read_csv('boin_all_table.csv',header=None,delimiter=',',dtype='float64')
+    input_data = []
+    output_data = []
+    name_num = 0 # kyosuke
+    df = df[df.iloc[:,5] == 0] # name_numデータだけ取り出す
+    
+    # 
+    ID = np.unique(df.iloc[:,6].astype(int)) # IDのユニーク番号を取得
+    for i in ID:
+        input_data.append(df[df.iloc[:,6] == i].iloc[:,7:].values)
+        output_data.append(df[df.iloc[:,6] == i].iloc[0,0])
+
+    input_data = np.array(input_data)
+    output_data = np.array(output_data).astype(int)
+
+    n_labels = len(np.unique(output_data))  # 分類クラスの数 = 5
+    output_data = np.eye(n_labels)[output_data]           # one hot表現に変換
+
+    # print(input_data)
+    # print(input_data.shape)
+
+    # print(output_data)
+    # print(output_data.shape)
+
+    return input_data,output_data
+
 
 def CNNLearn(Learn_num, inputdata, outputdata, validation_data_x, validation_data_y):
     '''
@@ -131,32 +162,6 @@ def CNNLearn(Learn_num, inputdata, outputdata, validation_data_x, validation_dat
     gc.collect()
 
 
-
-def fileopen(file_name = ""):
-    '''
-    fileopen
-    csvファイルを読み込み，読み込んだデータをnparrayとして出力する
-    '''
-    df = pd.read_csv('boin_all_table.csv',header=None,delimiter=',',dtype='float64')
-    input_data = []
-    output_data = []
-    for i in np.unique(df.iloc[:,6].astype(int)):
-        input_data.append(df[df.iloc[:,6] == i].iloc[:,7:].values)
-        output_data.append(df[df.iloc[:,6] == i].iloc[0,0])
-
-    input_data = np.array(input_data)
-    output_data = np.array(output_data).astype(int)
-
-    n_labels = len(np.unique(output_data))  # 分類クラスの数 = 5
-    output_data = np.eye(n_labels)[output_data]           # one hot表現に変換
-
-    # print(input_data)
-    # print(input_data.shape)
-
-    # print(output_data)
-    # print(output_data.shape)
-
-    return input_data,output_data
 
 
 

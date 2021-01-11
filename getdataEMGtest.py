@@ -11,6 +11,13 @@ from scipy.interpolate import interp1d
 
 # envelope = abs(signal.hilbert(data))
 
+threshold = 95
+
+max_95_0 = 0
+max_95_1 = 0
+max_95_2 = 0
+max_95_3 = 0
+
 margin = 200
 boin_all = []
 cnt = 0
@@ -187,9 +194,9 @@ def envelope(nd,ws):
     u_p = interp1d(u_x,u_y, kind = 'linear',bounds_error = False, fill_value=0.0)
 
     #Evaluate each model over the domain of (s)
-
     k = [i for i in range(len(s))]
     q_u = u_p(k)
+
 
     return q_u
 
@@ -204,7 +211,7 @@ def four_envelope(nd,ws=100):
     return nd
 
 # 4つの筋電を別々にプロット 1ループ
-def plot(nd,i,status,ws):
+def plot(nd,i,status,ws,threshold_list=0):
     """複数のグラフを並べて描画するプログラム"""
     import numpy as np
     import matplotlib.pyplot as plt
@@ -277,7 +284,16 @@ def plot(nd,i,status,ws):
     # ax3.legend(loc = 'upper right') #凡例
     # ax4.legend(loc = 'upper right') #凡例
     s_lines = [i*2000 +1000 -1 for i in range(5)]
+    
+    ax1.hlines(np.percentile(nd[:,0], q=[0, 25, 50, 75, 100, 95]),0,12000)
+    ax2.hlines(np.percentile(nd[:,1], q=[0, 25, 50, 75, 100, 95]),0,12000)
+    ax3.hlines(np.percentile(nd[:,2], q=[0, 25, 50, 75, 100, 95]),0,12000)
+    ax4.hlines(np.percentile(nd[:,3], q=[0, 25, 50, 75, 100, 95]),0,12000)
+
+
+
     # e_lines = [i*2000 +2000 -1 for i in range(5)]
+
     for j in s_lines:
         ax1.axvspan(j, j+1000, color = c1, alpha=0.1)
         ax2.axvspan(j, j+1000, color = c2, alpha=0.1)
@@ -311,11 +327,11 @@ def cut(nd,status,onnso_0,onnso_1,onnso_2,onnso_3,onnso_4,onnso_set,id):
         j = i
         if status[2] == 2:
             j += 4
-        onnso_0.append([onnso_set[0]] + [j] + status + [id] + np.squeeze(nd[1000-margin:2000+margin,i]).tolist())# 何か追加したときはmeanの順番に気を付ける
-        onnso_1.append([onnso_set[1]] + [j] + status + [id+1] + np.squeeze(nd[3000-margin:4000+margin,i]).tolist())
-        onnso_2.append([onnso_set[2]] + [j] + status + [id+2] + np.squeeze(nd[5000-margin:6000+margin,i]).tolist())
-        onnso_3.append([onnso_set[3]] + [j] + status + [id+3] + np.squeeze(nd[7000-margin:8000+margin,i]).tolist())
-        onnso_4.append([onnso_set[4]] + [j] + status + [id+4] + np.squeeze(nd[9000-margin:10000+margin,i]).tolist())
+        onnso_0.append([onnso_set[0]] + [j] + status + [id] + np.squeeze(nd[1000-margin:2000+margin,i]).tolist() + [np.percentile(nd[:,i], 95)])# 何か追加したときはmeanの順番に気を付ける
+        onnso_1.append([onnso_set[1]] + [j] + status + [id+1] + np.squeeze(nd[3000-margin:4000+margin,i]).tolist() + [np.percentile(nd[:,i], 95)])
+        onnso_2.append([onnso_set[2]] + [j] + status + [id+2] + np.squeeze(nd[5000-margin:6000+margin,i]).tolist() + [np.percentile(nd[:,i], 95)])
+        onnso_3.append([onnso_set[3]] + [j] + status + [id+3] + np.squeeze(nd[7000-margin:8000+margin,i]).tolist() + [np.percentile(nd[:,i], 95)])
+        onnso_4.append([onnso_set[4]] + [j] + status + [id+4] + np.squeeze(nd[9000-margin:10000+margin,i]).tolist() + [np.percentile(nd[:,i], 95)])
     
     # return boin_a,boin_i,boin_u,boin_e,boin_o
 
@@ -349,16 +365,21 @@ def mean(boin):# 筋肉別の平均値算出
 def one_file(path):
     global cnt
     status = get_status(path) # ステータスを取得
-    if status[0] == 1: # 誇張の場合のみ
+    if 6 in status: #maismaのみ
 
         nd = file_read(path) # 1人分の1試行分のデータ(母音のスライドのみ)をnd入れる
-        
+
         status = get_status(path) # ステータスを取得
 
         if data_envelope_frg == 1 :
             nd = four_envelope(nd,window_size)
+
         if avrage_frg == 1:
             nd = average(nd,window_size) # window_sizeで移動平均化
+        
+
+
+
         for i in range(5): # 1/roop
             if plotfrg == 1:# フラグが1だったらプロット
                 plot(nd[i*12000+1000:i*12000+12000],i,status,window_size) # 1つのパスのデータをplot
@@ -390,8 +411,8 @@ status_comment_frg = 1
 # plot関係
 plotfrg = 1
 save_data_plot_frg = 1
-one_roop_plt_frg = 0
-one_roop_save_frg = 1
+one_roop_plt_frg = 1
+one_roop_save_frg = 0
 plt_memory_release = 1
 all_plt_frg = 0
 
@@ -414,20 +435,20 @@ def main():
     boin_list = [boin_a,boin_i,boin_u,boin_e,boin_o]
 
     mean_table = []
-    for i in boin_list:
-        mean_table.append(mean(i))
+    # for i in boin_list:
+    #     mean_table.append(mean(i))
     boin_all.extend(boin_a)
     boin_all.extend(boin_i)
     boin_all.extend(boin_u)
     boin_all.extend(boin_e)
     boin_all.extend(boin_o)
-    save_csv(mean_table,'{}_mean_table.csv'.format(str(margin)))
-    save_csv(boin_a,'{}_boin_a_table.csv'.format(str(margin)))
-    save_csv(boin_i,'{}_boin_i_table.csv'.format(str(margin)))
-    save_csv(boin_u,'{}_boin_u_table.csv'.format(str(margin)))
-    save_csv(boin_e,'{}_boin_e_table.csv'.format(str(margin)))
-    save_csv(boin_o,'{}_boin_o_table.csv'.format(str(margin)))
-    save_csv(boin_all,'{}_boin_all_table.csv'.format(str(margin)))
+    save_csv(mean_table,'{}_mean_table.csv'.format(str(margin) + "masima"))
+    save_csv(boin_a,'{}_boin_a_table.csv'.format(str(margin)+ "masima"))
+    save_csv(boin_i,'{}_boin_i_table.csv'.format(str(margin)+ "masima"))
+    save_csv(boin_u,'{}_boin_u_table.csv'.format(str(margin)+ "masima"))
+    save_csv(boin_e,'{}_boin_e_table.csv'.format(str(margin)+ "masima"))
+    save_csv(boin_o,'{}_boin_o_table.csv'.format(str(margin)+ "masima"))
+    save_csv(boin_all,'{}_boin_all_table.csv'.format(str(margin)+ "masima"))
 
 
 main()
